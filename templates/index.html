@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Store Statistics</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <h1>Store Statistics</h1>
+
+    <label for="store_id">Enter Store ID:</label>
+    <input type="text" id="store_id" name="store_id">
+    <button onclick="fetchAndPlotData()">Plot Statistics</button>
+
+    <h2>Overall Statistics:</h2>
+    <div id="statistics">
+        <!-- Statistics will be displayed here -->
+    </div>
+
+    <h2>Peak Hours Analysis:</h2>
+    <canvas id="peakHoursChart" width="800" height="400"></canvas>
+
+    <h2>Arrival Time Distribution:</h2>
+    <canvas id="arrivalTimeChart" width="800" height="400"></canvas>
+
+    <script>
+        function fetchAndPlotData() {
+            const storeId = document.getElementById('store_id').value;
+            const baseUrl = `/data/${storeId}`;
+
+            // Fetch overall statistics
+            fetch(`${baseUrl}/statistics`)
+                .then(response => response.json())
+                .then(data => {
+                    const statisticsDiv = document.getElementById('statistics');
+                    statisticsDiv.innerHTML = `
+                        <p>Total Customers: ${data.total_customers}</p>
+                        <p>Average Wait Time: ${data.average_wait_time.toFixed(2)} seconds</p>
+                        <p>Average Order Time: ${data.average_order_time.toFixed(2)} seconds</p>
+                        <p>Average Payment Time: ${data.average_payment_time.toFixed(2)} seconds</p>
+                        <p>Average Service Time: ${data.average_service_time.toFixed(2)} seconds</p>
+                    `;
+                });
+
+            // Fetch peak hours data and plot graph
+            fetch(`${baseUrl}/peak-hours`)
+                .then(response => response.json())
+                .then(data => {
+                    const ctx = document.getElementById('peakHoursChart').getContext('2d');
+                    const labels = Object.keys(data);
+                    const values = Object.values(data);
+
+                    new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Average Service Time (seconds)',
+                                data: values,
+                                borderColor: 'blue',
+                                borderWidth: 2,
+                                fill: false
+                            }]
+                        },
+                        options: {
+                            scales: {
+                                yAxes: [{
+                                    ticks: {
+                                        beginAtZero: true
+                                    }
+                                }]
+                            }
+                        }
+                    });
+                });
+
+            // Fetch arrival times data and plot graph
+            fetch(`${baseUrl}/arrival-times`)
+                .then(response => response.json())
+                .then(data => {
+                    // Process data
+                    const arrivalTimes = data.map(time => new Date(time));
+                    const hours = arrivalTimes.map(time => time.getHours());
+                    const hourCounts = Array.from({ length: 24 }, () => 0); // Initialize an array to store counts for each hour
+
+                    // Count the number of arrivals for each hour
+                    hours.forEach(hour => {
+                        hourCounts[hour] += 1;
+                    });
+
+                    // Create Chart.js chart
+                    const ctx = document.getElementById('arrivalTimeChart').getContext('2d');
+                    new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: Array.from({ length: 24 }, (_, i) => i), // Create labels for each hour (0 to 23)
+                            datasets: [{
+                                label: 'Number of Customers',
+                                data: hourCounts,
+                                backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                                borderColor: 'rgba(255, 99, 132, 1)',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            scales: {
+                                xAxes: [{
+                                    scaleLabel: {
+                                        display: true,
+                                        labelString: 'Hour of the Day'
+                                    }
+                                }],
+                                yAxes: [{
+                                    scaleLabel: {
+                                        display: true,
+                                        labelString: 'Number of Customers'
+                                    },
+                                    ticks: {
+                                        beginAtZero: true
+                                    }
+                                }]
+                            }
+                        }
+                    });
+                })
+                .catch(error => console.error('Error fetching data:', error));
+        }
+    </script>
+</body>
+
+</html>
