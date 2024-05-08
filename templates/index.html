@@ -6,6 +6,55 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Store Statistics</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px; 
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        label {
+            margin-right: 10px;
+        }
+
+        input[type="text"] {
+            padding: 5px;
+            margin-right: 10px;
+        }
+
+        button {
+            padding: 5px 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        h2 {
+            margin-top: 30px;
+        }
+
+        canvas {
+            margin-top: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        #statistics {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
 </head>
 
 <body>
@@ -15,28 +64,38 @@
     <input type="text" id="store_id" name="store_id">
     <button onclick="fetchAndPlotData()">Plot Statistics</button>
 
-    <h2>Overall Statistics:</h2>
     <div id="statistics">
+        <h2>Overall Statistics:</h2>
         <!-- Statistics will be displayed here -->
     </div>
 
     <h2>Peak Hours Analysis:</h2>
-    <canvas id="peakHoursChart" width="800" height="400"></canvas>
+    <canvas id="peakHoursChart" width="1000" height="200"></canvas>
 
     <h2>Arrival Time Distribution:</h2>
-    <canvas id="arrivalTimeChart" width="800" height="400"></canvas>
+    <canvas id="arrivalTimeChart" width="1000" height="200"></canvas>
+
+    <h2>Order Time Distribution:</h2>
+    <canvas id="orderTimeChart" width="1000" height="200"></canvas>
+
+    <h2>Wait Time Distribution:</h2>
+    <canvas id="waitTimeChart" width="1000" height="200"></canvas>
+
+    <h2>Payment Time Distribution:</h2>
+    <canvas id="paymentTimeChart" width="1000" height="200">
+
 
     <script>
         function fetchAndPlotData() {
             const storeId = document.getElementById('store_id').value;
             const baseUrl = `/data/${storeId}`;
-
             // Fetch overall statistics
             fetch(`${baseUrl}/statistics`)
                 .then(response => response.json())
                 .then(data => {
                     const statisticsDiv = document.getElementById('statistics');
                     statisticsDiv.innerHTML = `
+                        <h2>Overall Statistics:</h2>
                         <p>Total Customers: ${data.total_customers}</p>
                         <p>Average Wait Time: ${data.average_wait_time.toFixed(2)} seconds</p>
                         <p>Average Order Time: ${data.average_order_time.toFixed(2)} seconds</p>
@@ -46,12 +105,17 @@
                 });
 
             // Fetch peak hours data and plot graph
-            fetch(`${baseUrl}/peak-hours`)
+            fetch(`${baseUrl}/peakHours`)
                 .then(response => response.json())
                 .then(data => {
                     const ctx = document.getElementById('peakHoursChart').getContext('2d');
                     const labels = Object.keys(data);
                     const values = Object.values(data);
+
+                    const existingChart = Chart.getChart('peakHoursChart');
+                    if (existingChart) {
+                        existingChart.destroy();
+                    }
 
                     new Chart(ctx, {
                         type: 'line',
@@ -77,29 +141,27 @@
                     });
                 });
 
-            // Fetch arrival times data and plot graph
-            fetch(`${baseUrl}/arrival-times`)
+            // Fetch arrival time data and plot graph
+            fetch(`${baseUrl}/arrivalTime`)
                 .then(response => response.json())
                 .then(data => {
-                    // Process data
-                    const arrivalTimes = data.map(time => new Date(time));
-                    const hours = arrivalTimes.map(time => time.getHours());
-                    const hourCounts = Array.from({ length: 24 }, () => 0); // Initialize an array to store counts for each hour
 
-                    // Count the number of arrivals for each hour
-                    hours.forEach(hour => {
-                        hourCounts[hour] += 1;
-                    });
+                    const labels = Object.keys(data);
+                    const values = Object.values(data);
 
-                    // Create Chart.js chart
+                    const existingChart = Chart.getChart('arrivalTimeChart');
+                    if (existingChart) {
+                        existingChart.destroy();
+                    }
+
                     const ctx = document.getElementById('arrivalTimeChart').getContext('2d');
                     new Chart(ctx, {
                         type: 'bar',
                         data: {
-                            labels: Array.from({ length: 24 }, (_, i) => i), // Create labels for each hour (0 to 23)
+                            labels: labels,
                             datasets: [{
                                 label: 'Number of Customers',
-                                data: hourCounts,
+                                data: values,
                                 backgroundColor: 'rgba(255, 99, 132, 0.5)',
                                 borderColor: 'rgba(255, 99, 132, 1)',
                                 borderWidth: 1
@@ -118,6 +180,118 @@
                                         display: true,
                                         labelString: 'Number of Customers'
                                     },
+                                    ticks: {
+                                        beginAtZero: true
+                                    }
+                                }]
+                            }
+                        }
+                    });
+                })
+                .catch(error => console.error('Error fetching data:', error));
+
+            // Fetch wait time by hour
+            fetch(`${baseUrl}/waitTime`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log(storeId)
+                    const labels = Object.keys(data);
+                    const values = Object.values(data);
+
+                    const existingChart = Chart.getChart('waitTimeChart');
+                    if (existingChart) {
+                        existingChart.destroy();
+                    }
+                    const ctx = document.getElementById('waitTimeChart').getContext('2d');
+                    new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Wait Time (seconds)',
+                                data: values,
+                                backgroundColor: '#59D5E0',
+                                borderColor: '#59D5E0',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            scales: {
+                                yAxes: [{
+                                    ticks: {
+                                        beginAtZero: true
+                                    }
+                                }]
+                            }
+                        }
+                    });
+                })
+                .catch(error => console.error('Error fetching data:', error));
+
+            fetch(`${baseUrl}/orderTime`)
+                .then(response => response.json())
+                .then(data => {
+                    // Extract hour and total time data
+                    const labels = Object.keys(data);
+                    const values = Object.values(data);
+
+                    const existingChart = Chart.getChart('orderTimeChart');
+                    if (existingChart) {
+                        existingChart.destroy();
+                    }
+                    const ctx = document.getElementById('orderTimeChart').getContext('2d');
+                    new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Order Time (seconds)',
+                                data: values,
+                                backgroundColor: '#7469B6',
+                                borderColor: '#7469B6',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            scales: {
+                                yAxes: [{
+                                    ticks: {
+                                        beginAtZero: true
+                                    }
+                                }]
+                            }
+                        }
+                    });
+                })
+                .catch(error => console.error('Error fetching data:', error));
+
+            fetch(`${baseUrl}/paymentTime`)
+                .then(response => response.json())
+                .then(data => {
+                    // Extract hour and total time data
+                    const labels = Object.keys(data);
+                    const values = Object.values(data);
+
+                    const existingChart = Chart.getChart('paymentTimeChart');
+                    if (existingChart) {
+                        existingChart.destroy();
+                    }
+                    const ctx = document.getElementById('paymentTimeChart').getContext('2d');
+                    new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Payment Time (seconds)',
+                                data: values,
+                                backgroundColor: '#FF5580',
+                                borderColor: '#FF5580',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            scales: {
+                                yAxes: [{
                                     ticks: {
                                         beginAtZero: true
                                     }
